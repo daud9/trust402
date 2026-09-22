@@ -150,6 +150,24 @@ server.registerExtension(
  */
 
 const trustDiscovery = declareDiscoveryExtension({
+  bodyType: "json",
+
+  input: {
+    target: "TEST-AGENT",
+  },
+
+  inputSchema: {
+    type: "object",
+    properties: {
+      target: {
+        type: "string",
+        description:
+          "Agent, wallet, API, website, or other counterparty to assess.",
+      },
+    },
+    required: ["target"],
+  },
+
   output: {
     example: {
       trust_score: 78,
