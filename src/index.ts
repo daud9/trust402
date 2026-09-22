@@ -87,12 +87,44 @@ app.get("/.well-known/trust402.json", (c) => {
  * ---------------------------------------------------------
  */
 
-const facilitatorClient = new HTTPFacilitatorClient({
+const baseFacilitator = new HTTPFacilitatorClient({
   url: FACILITATOR_URL,
 });
 
-const server = new x402ResourceServer(facilitatorClient);
-await server.initialize();
+class CompatibleFacilitatorClient extends HTTPFacilitatorClient {
+  async getSupported() {
+    const supported = await super.getSupported();
+
+    return {
+      ...supported,
+      kinds: supported.kinds.map((kind) => {
+        if (
+          kind.network.startsWith("algorand:") &&
+          kind.network !== "algorand:*"
+        ) {
+          const reference = kind.network.slice("algorand:".length);
+
+          return {
+            ...kind,
+            network:
+              "algorand:" + reference.slice(0, 32),
+          };
+        }
+
+        return kind;
+      }),
+    };
+  }
+}
+
+const facilitatorClient =
+  new CompatibleFacilitatorClient({
+    url: FACILITATOR_URL,
+  });
+
+const server = new x402ResourceServer(
+  facilitatorClient,
+);
 
 /*
  * Register Algorand AVM exact payment scheme.
