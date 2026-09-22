@@ -92,6 +92,7 @@ const facilitatorClient = new HTTPFacilitatorClient({
 });
 
 const server = new x402ResourceServer(facilitatorClient);
+await server.initialize();
 
 /*
  * Register Algorand AVM exact payment scheme.
@@ -178,9 +179,6 @@ if (PAY_TO) {
         },
       },
             server,
-      undefined,
-      undefined,
-      true,
     ),
   );
 }
