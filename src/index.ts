@@ -78,7 +78,6 @@ app.get("/.well-known/trust402.json", (c) => {
           "Returns a machine-readable trust and risk report for a target.",
       },
     },
-  });
 });
 
 /*
