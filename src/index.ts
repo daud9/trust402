@@ -6,8 +6,9 @@ import {
 import { HTTPFacilitatorClient } from "npm:@x402/core/server";
 import { ExactAvmScheme } from "npm:@x402/avm/exact/server";
 import {
-  ALGORAND_TESTNET_CAIP2,
-  USDC_TESTNET_ASA_ID,
+  import {
+  ALGORAND_MAINNET_CAIP2,
+  USDC_MAINNET_ASA_ID,
 } from "npm:@x402/avm";
 import {
   declareDiscoveryExtension,
@@ -38,7 +39,7 @@ app.get("/", (c) => {
       "Paid trust infrastructure for autonomous AI agents",
     version: "0.1.0",
     status: "online",
-    network: "Algorand TestNet",
+    network: ALGORAND_MAINNET_CAIP2,
     price: PRICE,
     endpoint: "/v1/trust",
   });
@@ -64,11 +65,11 @@ app.get("/.well-known/trust402.json", (c) => {
     description:
       "A paid trust primitive that AI agents can use before transacting with other agents, wallets, APIs or services.",
     version: "0.1.0",
-    network: ALGORAND_TESTNET_CAIP2,
+    network: ALGORAND_MAINNET_CAIP2,
     payment: {
       price: PRICE,
       asset: "USDC",
-      assetId: USDC_TESTNET_ASA_ID,
+      assetId: USDC_MAINNET_ASA_ID,
     },
     endpoints: {
       trust: {
@@ -132,7 +133,7 @@ const server = new x402ResourceServer(
 const avmServerScheme = new ExactAvmScheme();
 
 server.register(
-  ALGORAND_TESTNET_CAIP2,
+  ALGORAND_MAINNET_CAIP2,
   avmServerScheme,
 );
 
@@ -203,10 +204,12 @@ if (PAY_TO) {
             {
               scheme: "exact",
               price: PRICE,
-              network: ALGORAND_TESTNET_CAIP2,
-              payTo: PAY_TO,
-              extra: {
-                asset: USDC_TESTNET_ASA_ID,
+              network: ALGORAND_MAINNET_CAIP2,
+payTo: PAY_TO,
+extra: {
+  asset: USDC_MAINNET_ASA_ID,
+  tag: "x402-global-challenge",
+},
               },
             },
           ],
@@ -320,7 +323,7 @@ app.post("/v1/trust", async (c) => {
 
     payment: {
       price: PRICE,
-      network: ALGORAND_TESTNET_CAIP2,
+      network: "Algorand MainNet",
       asset: "USDC",
     },
 
