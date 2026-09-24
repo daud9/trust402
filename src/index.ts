@@ -6,7 +6,6 @@ import {
 import { HTTPFacilitatorClient } from "npm:@x402/core/server";
 import { ExactAvmScheme } from "npm:@x402/avm/exact/server";
 import {
-  import {
   ALGORAND_MAINNET_CAIP2,
   USDC_MAINNET_ASA_ID,
 } from "npm:@x402/avm";
