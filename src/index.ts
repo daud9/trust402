@@ -207,7 +207,6 @@ payTo: PAY_TO,
 extra: {
   asset: USDC_MAINNET_ASA_ID,
   tag: "x402-global-challenge",
-},
               },
             },
           ],
