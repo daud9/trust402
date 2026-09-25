@@ -26,16 +26,13 @@ const FACILITATOR_URL =
 const PRICE = "$0.05";
 
 /*
- * ---------------------------------------------------------
  * PUBLIC INFORMATION
- * ---------------------------------------------------------
  */
 
 app.get("/", (c) => {
   return c.json({
     name: "Trust402",
-    description:
-      "Paid trust infrastructure for autonomous AI agents",
+    description: "Paid trust infrastructure for autonomous AI agents",
     version: "0.1.0",
     status: "online",
     network: ALGORAND_MAINNET_CAIP2,
@@ -53,9 +50,7 @@ app.get("/health", (c) => {
 });
 
 /*
- * ---------------------------------------------------------
  * TRUST402 DISCOVERY
- * ---------------------------------------------------------
  */
 
 app.get("/.well-known/trust402.json", (c) => {
@@ -78,17 +73,12 @@ app.get("/.well-known/trust402.json", (c) => {
           "Returns a machine-readable trust and risk report for a target.",
       },
     },
+  });
 });
 
 /*
- * ---------------------------------------------------------
  * X402 RESOURCE SERVER
- * ---------------------------------------------------------
  */
-
-const baseFacilitator = new HTTPFacilitatorClient({
-  url: FACILITATOR_URL,
-});
 
 class CompatibleFacilitatorClient extends HTTPFacilitatorClient {
   async getSupported() {
@@ -114,18 +104,15 @@ class CompatibleFacilitatorClient extends HTTPFacilitatorClient {
     };
   }
 }
-const facilitatorClient =
-  new CompatibleFacilitatorClient({
-    url: FACILITATOR_URL,
-  });
+
+const facilitatorClient = new CompatibleFacilitatorClient({
+  url: FACILITATOR_URL,
+});
 
 const server = new x402ResourceServer(
   facilitatorClient,
 );
 
-/*
- * Register Algorand AVM exact payment scheme.
- */
 const avmServerScheme = new ExactAvmScheme();
 
 server.register(
@@ -134,16 +121,15 @@ server.register(
 );
 
 /*
- * Register Bazaar discovery extension.
+ * BAZAAR DISCOVERY EXTENSION
  */
+
 server.registerExtension(
   bazaarResourceServerExtension as unknown as ResourceServerExtension,
 );
 
 /*
- * ---------------------------------------------------------
  * BAZAAR DISCOVERY METADATA
- * ---------------------------------------------------------
  */
 
 const trustDiscovery = declareDiscoveryExtension({
@@ -169,15 +155,19 @@ const trustDiscovery = declareDiscoveryExtension({
     example: {
       trust_score: 78,
       risk_level: "medium",
+
       identity: {
         status: "verified",
       },
+
       wallet: {
         status: "checked",
       },
+
       reputation: {
         status: "checked",
       },
+
       warnings: [],
       evidence: [],
       confidence: 0.91,
@@ -186,9 +176,7 @@ const trustDiscovery = declareDiscoveryExtension({
 });
 
 /*
- * ---------------------------------------------------------
  * PAID TRUST API
- * ---------------------------------------------------------
  */
 
 if (PAY_TO) {
@@ -201,10 +189,11 @@ if (PAY_TO) {
               scheme: "exact",
               price: PRICE,
               network: ALGORAND_MAINNET_CAIP2,
-payTo: PAY_TO,
-extra: {
-  asset: USDC_MAINNET_ASA_ID,
-  tag: "x402-global-challenge",
+              payTo: PAY_TO,
+
+              extra: {
+                asset: USDC_MAINNET_ASA_ID,
+                tag: "x402-global-challenge",
               },
             },
           ],
@@ -218,6 +207,7 @@ extra: {
 
           unpaidResponseBody: () => ({
             contentType: "application/json",
+
             body: {
               error: "payment_required",
               message:
@@ -226,15 +216,14 @@ extra: {
           }),
         },
       },
+
       server,
     ),
   );
 }
 
 /*
- * ---------------------------------------------------------
  * TRUST REPORT
- * ---------------------------------------------------------
  */
 
 app.post("/v1/trust", async (c) => {
@@ -261,15 +250,15 @@ app.post("/v1/trust", async (c) => {
     typeof body.target === "string"
       ? body.target
       : typeof body.address === "string"
-        ? body.address
-        : null;
+      ? body.address
+      : null;
 
   /*
    * Initial Trust402 engine.
    *
    * This is intentionally deterministic for the first
-   * deployment. External identity, wallet, reputation and
-   * risk providers will be connected in the next stage.
+   * deployment. External identity, wallet, reputation
+   * and risk providers can be connected later.
    */
 
   const report = {
@@ -325,6 +314,7 @@ app.post("/v1/trust", async (c) => {
     timestamp: new Date().toISOString(),
 
     service: "Trust402",
+
     version: "0.1.0",
   };
 
@@ -332,9 +322,7 @@ app.post("/v1/trust", async (c) => {
 });
 
 /*
- * ---------------------------------------------------------
  * SERVER
- * ---------------------------------------------------------
  */
 
 Deno.serve(app.fetch);
