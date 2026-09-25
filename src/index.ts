@@ -105,8 +105,7 @@ class CompatibleFacilitatorClient extends HTTPFacilitatorClient {
 
           return {
             ...kind,
-            network:
-              "algorand:" + reference.slice(0, 32),
+            network: "algorand:" + reference.slice(0, 32),
           };
         }
 
@@ -115,7 +114,6 @@ class CompatibleFacilitatorClient extends HTTPFacilitatorClient {
     };
   }
 }
-
 const facilitatorClient =
   new CompatibleFacilitatorClient({
     url: FACILITATOR_URL,
