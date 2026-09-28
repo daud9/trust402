@@ -32,6 +32,14 @@ app.use(
   }),
 );
 
+app.get("/cors-test", (c) => {
+  return c.json({
+    ok: true,
+    service: "Trust402",
+    cors: "working",
+  });
+});
+
 const PAY_TO = Deno.env.get("PAY_TO") || "";
 
 const FACILITATOR_URL =
