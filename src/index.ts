@@ -18,6 +18,29 @@ import type { ResourceServerExtension } from "npm:@x402/core/types";
 
 const app = new Hono();
 
+app.onError((err, c) => {
+  console.error("TRUST402 ERROR:", err);
+
+  c.header(
+    "Access-Control-Allow-Origin",
+    "*",
+  );
+
+  c.header(
+    "Access-Control-Expose-Headers",
+    "PAYMENT-REQUIRED, PAYMENT-RESPONSE",
+  );
+
+  return c.json(
+    {
+      error: "trust402_internal_error",
+      message: err?.message || String(err),
+      stack: err?.stack || null,
+    },
+    500,
+  );
+});
+
 app.use(
   "*",
   cors({
