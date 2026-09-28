@@ -34,6 +34,10 @@ app.use(
   }),
 );
 
+app.options("/v1/trust", (c) => {
+  return c.body(null, 204);
+});
+
 const PAY_TO = Deno.env.get("PAY_TO") || "";
 
 const FACILITATOR_URL =
