@@ -1,4 +1,5 @@
 import { Hono } from "npm:hono";
+import { cors } from "npm:hono/cors";
 import {
   paymentMiddleware,
   x402ResourceServer,
@@ -16,6 +17,22 @@ import {
 import type { ResourceServerExtension } from "npm:@x402/core/types";
 
 const app = new Hono();
+
+app.use(
+  "*",
+  cors({
+    origin: "*",
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    allowHeaders: [
+      "Content-Type",
+      "PAYMENT-SIGNATURE",
+    ],
+    exposeHeaders: [
+      "PAYMENT-REQUIRED",
+      "PAYMENT-RESPONSE",
+    ],
+  }),
+);
 
 const PAY_TO = Deno.env.get("PAY_TO") || "";
 
