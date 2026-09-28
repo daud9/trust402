@@ -40,6 +40,22 @@ app.get("/cors-test", (c) => {
   });
 });
 
+app.post("/post-test", async (c) => {
+  let body = null;
+
+  try {
+    body = await c.req.json();
+  } catch {
+    body = "could not parse JSON";
+  }
+
+  return c.json({
+    ok: true,
+    method: "POST",
+    body,
+  });
+});
+
 const PAY_TO = Deno.env.get("PAY_TO") || "";
 
 const FACILITATOR_URL =
