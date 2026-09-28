@@ -23,20 +23,14 @@ app.use(
   cors({
     origin: "*",
     allowMethods: ["GET", "POST", "OPTIONS"],
-    allowHeaders: [
-      "Content-Type",
-      "PAYMENT-SIGNATURE",
-    ],
+    allowHeaders: ["Content-Type", "PAYMENT-SIGNATURE"],
     exposeHeaders: [
       "PAYMENT-REQUIRED",
       "PAYMENT-RESPONSE",
     ],
+    maxAge: 86400,
   }),
 );
-
-app.options("/v1/trust", (c) => {
-  return c.body(null, 204);
-});
 
 const PAY_TO = Deno.env.get("PAY_TO") || "";
 
