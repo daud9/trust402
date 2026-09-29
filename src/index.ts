@@ -9,6 +9,7 @@ import { ExactAvmScheme } from "npm:@x402/avm/exact/server";
 import {
   ALGORAND_MAINNET_CAIP2,
   USDC_MAINNET_ASA_ID,
+  normalizeAlgorandNetwork,
 } from "npm:@x402/avm";
 import {
   declareDiscoveryExtension,
@@ -142,8 +143,31 @@ app.get("/.well-known/trust402.json", (c) => {
  * X402 RESOURCE SERVER
  */
 
+class CompatibleFacilitatorClient
+  extends HTTPFacilitatorClient {
+  async getSupported() {
+    const supported =
+      await super.getSupported();
+
+    return {
+      ...supported,
+
+      kinds: supported.kinds.map((kind) => ({
+        ...kind,
+
+        network:
+          kind.network.startsWith("algorand:")
+            ? normalizeAlgorandNetwork(
+                kind.network,
+              )
+            : kind.network,
+      })),
+    };
+  }
+}
+
 const facilitatorClient =
-  new HTTPFacilitatorClient({
+  new CompatibleFacilitatorClient({
     url: FACILITATOR_URL,
   });
 
@@ -151,7 +175,8 @@ const server = new x402ResourceServer(
   facilitatorClient,
 );
 
-const avmServerScheme = new ExactAvmScheme();
+const avmServerScheme =
+  new ExactAvmScheme();
 
 server.register(
   ALGORAND_MAINNET_CAIP2,
