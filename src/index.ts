@@ -5,7 +5,7 @@ import {
   x402ResourceServer,
 } from "npm:@x402/hono";
 import { HTTPFacilitatorClient } from "npm:@x402/core/server";
-import { ExactAvmScheme } from "npm:@x402/avm/exact/server";
+import { registerExactAvmScheme } from "npm:@x402/avm/exact/server";
 import {
   ALGORAND_MAINNET_CAIP2,
   USDC_MAINNET_ASA_ID,
@@ -151,12 +151,9 @@ const server = new x402ResourceServer(
   facilitatorClient,
 );
 
-const avmServerScheme = new ExactAvmScheme();
-
-server.register(
-  ALGORAND_MAINNET_CAIP2,
-  avmServerScheme,
-);
+registerExactAvmScheme(server, {
+  networks: [ALGORAND_MAINNET_CAIP2],
+});
 
 /*
  * BAZAAR DISCOVERY EXTENSION
