@@ -6,18 +6,23 @@ import {
 } from "npm:@x402/hono@^2";
 import { HTTPFacilitatorClient } from "npm:@x402/core@2.27.0/server";
 import { ExactAvmScheme } from "npm:@x402/avm@2.27.0/exact/server";
-import * as avm from "npm:@x402/avm@2.27.0";
 import {
   declareDiscoveryExtension,
   bazaarResourceServerExtension,
 } from "npm:@x402-avm/extensions/bazaar";
 import type { ResourceServerExtension } from "npm:@x402/core@2.27.0/types";
 
-// Namespace import: a missing export can no longer crash startup.
-const ALGORAND_MAINNET_CAIP2 = (avm as any).ALGORAND_MAINNET_CAIP2 as string;
-const USDC_MAINNET_ASA_ID = (avm as any).USDC_MAINNET_ASA_ID as string;
-const normalizeNetwork = (n: string): string =>
-  (avm as any).normalizeAlgorandNetwork?.(n) ?? n;
+// Hardcoded on purpose: the package constant is a shortened ID that the
+// GoPlausible facilitator rejects. This is the full Algorand MainNet CAIP-2 ID.
+const ALGORAND_MAINNET_CAIP2 =
+  "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=";
+const USDC_MAINNET_ASA_ID = "31566704";
+
+const SHORT_NET_RE = /algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73k(?!tiC1)/g;
+const toFull = (o: unknown) =>
+  JSON.parse(
+    JSON.stringify(o).replace(SHORT_NET_RE, ALGORAND_MAINNET_CAIP2),
+  );
 
 const app = new Hono();
 
@@ -90,6 +95,7 @@ app.get("/health", (c) => {
     status: "healthy",
     service: "Trust402",
     payToSet: Boolean(PAY_TO),
+    network: ALGORAND_MAINNET_CAIP2,
     timestamp: new Date().toISOString(),
   });
 });
@@ -124,16 +130,15 @@ app.get("/.well-known/trust402.json", (c) => {
 class CompatibleFacilitatorClient extends HTTPFacilitatorClient {
   async getSupported() {
     const supported = await super.getSupported();
+    return toFull(supported);
+  }
 
-    return {
-      ...supported,
-      kinds: supported.kinds.map((kind: any) => ({
-        ...kind,
-        network: String(kind.network).startsWith("algorand:")
-          ? normalizeNetwork(kind.network)
-          : kind.network,
-      })),
-    };
+  async verify(payload: any, requirements: any) {
+    return await super.verify(toFull(payload), toFull(requirements));
+  }
+
+  async settle(payload: any, requirements: any) {
+    return await super.settle(toFull(payload), toFull(requirements));
   }
 }
 
