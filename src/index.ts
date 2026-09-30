@@ -76,6 +76,7 @@ const FACILITATOR_URL =
   Deno.env.get("FACILITATOR_URL") || "https://facilitator.goplausible.xyz";
 
 const PRICE = "$0.05";
+const PRICE_ADV = "$0.20";
 
 /* PUBLIC INFORMATION */
 
@@ -122,6 +123,13 @@ app.get("/.well-known/trust402.json", (c) => {
         description:
           "Returns a machine-readable trust and risk report for a target.",
       },
+      advanced: {
+        method: "POST",
+        path: "/v1/trust/advanced",
+        price: PRICE_ADV,
+        description:
+          "Adds transaction flow, counterparty diversity, velocity, holdings, domain expiry and security.txt checks.",
+      },
     },
   });
 });
@@ -157,7 +165,7 @@ server.registerExtension(
   bazaarResourceServerExtension as unknown as ResourceServerExtension,
 );
 
-const trustDiscovery = declareDiscoveryExtension({
+const makeDiscovery = () => declareDiscoveryExtension({
   bodyType: "json",
 
   input: {
@@ -189,6 +197,8 @@ const trustDiscovery = declareDiscoveryExtension({
     },
   },
 });
+const trustDiscovery = makeDiscovery();
+const trustDiscoveryAdv = makeDiscovery();
 
 /* PAID TRUST API */
 
@@ -225,6 +235,36 @@ if (PAY_TO) {
             },
           }),
         },
+
+        "POST /v1/trust/advanced": {
+          accepts: [
+            {
+              scheme: "exact",
+              price: PRICE_ADV,
+              network: ALGORAND_MAINNET_CAIP2,
+              payTo: PAY_TO,
+              extra: {
+                asset: USDC_MAINNET_ASA_ID,
+                tag: "x402-global-challenge",
+              },
+            },
+          ],
+
+          description:
+            "Advanced Trust402 report: adds transaction flow, counterparty diversity, velocity, holdings, domain expiry and security.txt checks.",
+
+          mimeType: "application/json",
+
+          extensions: trustDiscoveryAdv,
+
+          unpaidResponseBody: () => ({
+            contentType: "application/json",
+            body: {
+              error: "payment_required",
+              message: "Pay $0.20 USDC to receive an advanced Trust402 report.",
+            },
+          }),
+        },
       },
       server,
     ),
@@ -237,7 +277,7 @@ if (PAY_TO) {
 
 /* TRUST REPORT */
 
-app.post("/v1/trust", async (c) => {
+const trustHandler = (deep: boolean) => async (c: any) => {
   if (!PAY_TO) {
     return c.json(
       {
@@ -263,10 +303,25 @@ app.post("/v1/trust", async (c) => {
       ? body.address
       : null;
 
-  const report = await assess(target);
+  const report = await assess(target, deep);
+
+  // Returning >= 400 means x402 does NOT settle: unrecognized targets cost nothing.
+  if (report.target_type === "label") {
+    return c.json(
+      {
+        error: "unrecognized_target",
+        message:
+          "Send an Algorand address, a .algo name or an https:// URL. You were not charged.",
+      },
+      400,
+    );
+  }
 
   return c.json(report);
-});
+};
+
+app.post("/v1/trust", trustHandler(false));
+app.post("/v1/trust/advanced", trustHandler(true));
 
 /* SERVER */
 
