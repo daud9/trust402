@@ -10,6 +10,7 @@ import {
   declareDiscoveryExtension,
   bazaarResourceServerExtension,
 } from "npm:@x402-avm/extensions/bazaar";
+import { assess } from "./assess.ts";
 import type { ResourceServerExtension } from "npm:@x402/core@2.27.0/types";
 
 // Hardcoded on purpose: the package constant is a shortened ID that the
@@ -82,7 +83,7 @@ app.get("/", (c) => {
   return c.json({
     name: "Trust402",
     description: "Paid trust infrastructure for autonomous AI agents",
-    version: "0.1.0",
+    version: "0.2.0",
     status: "online",
     network: ALGORAND_MAINNET_CAIP2,
     price: PRICE,
@@ -210,7 +211,7 @@ if (PAY_TO) {
           ],
 
           description:
-            "Paid Trust402 trust and risk assessment for autonomous agents.",
+            "Trust and risk report for an Algorand wallet, .algo name, website or x402 endpoint: on-chain age, activity, identity, domain age, security headers, and payTo checks.",
 
           mimeType: "application/json",
 
@@ -262,38 +263,7 @@ app.post("/v1/trust", async (c) => {
       ? body.address
       : null;
 
-  const report = {
-    trust_score: 78,
-    risk_level: "medium",
-    target,
-
-    identity: { status: "pending_verification", checked: true },
-    wallet: { status: "pending_analysis", checked: true },
-    contract: { status: "not_analyzed", checked: false },
-    website: { status: "not_analyzed", checked: false },
-    reputation: { status: "pending_external_checks", checked: true },
-
-    warnings: [],
-
-    evidence: [
-      {
-        type: "trust402_assessment",
-        description: "Initial Trust402 assessment generated successfully.",
-      },
-    ],
-
-    confidence: 0.35,
-
-    payment: {
-      price: PRICE,
-      network: "Algorand MainNet",
-      asset: "USDC",
-    },
-
-    timestamp: new Date().toISOString(),
-    service: "Trust402",
-    version: "0.1.0",
-  };
+  const report = await assess(target);
 
   return c.json(report);
 });
