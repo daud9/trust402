@@ -27,16 +27,28 @@ async function getJson(url: string, init: RequestInit = {}, ms = 6000) {
   }
 }
 
+async function headStatus(url: string) {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), 5000);
+  try {
+    return (await fetch(url, { redirect: "manual", signal: c.signal })).status;
+  } catch {
+    return 0;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 const isAddr = (s: string) => /^[A-Z2-7]{58}$/.test(s);
 const days = (ts: number) => Math.floor((Date.now() / 1000 - ts) / 86400);
 
 /* ---------------- WALLET ---------------- */
 
-async function walletChecks(addr: string): Promise<{ checks: Check[]; nfd: string | null }> {
+async function walletChecks(addr: string, deep = false): Promise<{ checks: Check[]; nfd: string | null }> {
   const checks: Check[] = [];
   const [accRes, txRes, nfdRes] = await Promise.all([
     getJson(`${IDX}/v2/accounts/${addr}`),
-    getJson(`${IDX}/v2/accounts/${addr}/transactions?limit=25`),
+    getJson(`${IDX}/v2/accounts/${addr}/transactions?limit=${deep ? 100 : 25}`),
     getJson(`https://api.nf.domains/nfd/lookup?address=${addr}&view=tiny`),
   ]);
 
@@ -97,6 +109,34 @@ async function walletChecks(addr: string): Promise<{ checks: Check[]; nfd: strin
     : info("NFD identity", "No NFD name linked to this address."),
   );
 
+  if (deep) {
+    const nowS = Date.now() / 1000;
+    let inn = 0, out = 0, w7 = 0, w30 = 0;
+    const peers = new Set<string>();
+    for (const t of list) {
+      const a = t["asset-transfer-transaction"] ?? t["payment-transaction"];
+      if (t.sender === addr) { out++; if (a?.receiver) peers.add(a.receiver); }
+      else { inn++; peers.add(t.sender); }
+      const age = nowS - (t["round-time"] ?? 0);
+      if (age <= 7 * 86400) w7++;
+      if (age <= 30 * 86400) w30++;
+    }
+    if (list.length) {
+      checks.push(info("Flow pattern", `Last ${list.length} txns: ${inn} incoming, ${out} outgoing.`));
+      checks.push(
+        peers.size >= 5 ? ok("Counterparty diversity", `${peers.size} distinct counterparties.`, 6)
+        : warn("Counterparty diversity", `Only ${peers.size} distinct counterparties.`, 6),
+      );
+      checks.push(info("Velocity", `${w7} txns in 7 days, ${w30} in 30 days.`));
+      if (w7 > 60) checks.push(warn("Velocity", "Very high transaction rate. Possible automated activity.", 6));
+    }
+    checks.push(info("Holdings", `${acc["total-assets-opted-in"] ?? 0} assets and ${acc["total-apps-opted-in"] ?? 0} apps opted in.`));
+    const made = acc["total-created-assets"] ?? 0;
+    checks.push(info("Asset issuer", made > 0 ? `Created ${made} asset(s).` : "Has not created assets."));
+    const u = (acc.assets ?? []).find((a: any) => a["asset-id"] === USDC);
+    if (u) checks.push(info("USDC balance", `${(u.amount / 1e6).toFixed(2)} USDC held.`));
+  }
+
   return { checks, nfd };
 }
 
@@ -115,7 +155,7 @@ function safeUrl(input: string): URL | null {
   }
 }
 
-async function siteChecks(u: URL): Promise<{ checks: Check[]; payTo: string | null }> {
+async function siteChecks(u: URL, deep = false): Promise<{ checks: Check[]; payTo: string | null }> {
   const checks: Check[] = [];
   let payTo: string | null = null;
 
@@ -143,7 +183,7 @@ async function siteChecks(u: URL): Promise<{ checks: Check[]; payTo: string | nu
   try {
     const url = u.toString();
     let r = await fetch(url, { redirect: "manual", signal: c.signal });
-    if (r.status === 405) {
+    if (r.status === 405 || r.status === 404) {
       r = await fetch(url, { method: "POST", body: "{}", headers: { "Content-Type": "application/json" }, redirect: "manual", signal: c.signal });
     }
 
@@ -183,12 +223,29 @@ async function siteChecks(u: URL): Promise<{ checks: Check[]; payTo: string | nu
     clearTimeout(t);
   }
 
+  if (deep) {
+    const exp = (rdap?.events ?? []).find((e: any) => e.eventAction === "expiration");
+    if (exp?.eventDate) {
+      const left = -days(Date.parse(exp.eventDate) / 1000);
+      checks.push(
+        left < 60 ? warn("Domain expiry", `Domain expires in ${left} days.`, 6)
+        : ok("Domain expiry", `Domain expires in ${left} days.`, 3),
+      );
+    }
+    const [sec, rob] = await Promise.all([
+      headStatus(`${u.origin}/.well-known/security.txt`),
+      headStatus(`${u.origin}/robots.txt`),
+    ]);
+    checks.push(sec === 200 ? ok("security.txt", "Publishes a security contact.", 4) : info("security.txt", "No security.txt found."));
+    checks.push(info("robots.txt", rob === 200 ? "robots.txt present." : "No robots.txt."));
+  }
+
   return { checks, payTo };
 }
 
 /* ---------------- MAIN ---------------- */
 
-export async function assess(target: string | null) {
+export async function assess(target: string | null, deep = false) {
   const raw = (target ?? "").trim().slice(0, 200);
   let type = "label";
   const checks: Check[] = [];
@@ -197,7 +254,7 @@ export async function assess(target: string | null) {
 
   if (isAddr(raw)) {
     type = "algorand_address";
-    const w = await walletChecks(raw);
+    const w = await walletChecks(raw, deep);
     checks.push(...w.checks);
     nfd = w.nfd;
   } else if (/\.algo$/i.test(raw)) {
@@ -207,7 +264,7 @@ export async function assess(target: string | null) {
     if (owner && isAddr(owner)) {
       nfd = raw.toLowerCase();
       checks.push(ok("NFD resolves", `${nfd} resolves to ${owner.slice(0, 6)}…${owner.slice(-6)}.`, 8));
-      checks.push(...(await walletChecks(owner)).checks);
+      checks.push(...(await walletChecks(owner, deep)).checks);
       subject = owner;
     } else {
       checks.push(bad("NFD resolves", "This NFD name does not resolve to an owner.", 15));
@@ -215,11 +272,11 @@ export async function assess(target: string | null) {
   } else if (safeUrl(raw)) {
     type = "website_or_api";
     const u = safeUrl(raw)!;
-    const s = await siteChecks(u);
+    const s = await siteChecks(u, deep);
     checks.push(...s.checks);
     if (s.payTo) {
       checks.push(info("Receiving wallet", `Endpoint pays to ${s.payTo.slice(0, 6)}…${s.payTo.slice(-6)}. Checked below.`));
-      const w = await walletChecks(s.payTo);
+      const w = await walletChecks(s.payTo, deep);
       checks.push(...w.checks.map((c) => ({ ...c, name: `payTo · ${c.name}` })));
       nfd = w.nfd;
       subject = s.payTo;
@@ -251,6 +308,7 @@ export async function assess(target: string | null) {
     risk_level: risk,
     target: raw || null,
     target_type: type,
+    tier: deep ? "advanced" : "basic",
     resolved_wallet: subject,
     identity: { status: nfd ? `nfd:${nfd}` : "unverified", checked: type !== "label" },
     wallet: { status: type === "label" ? "not_applicable" : has("Account exists", "fail") ? "unfunded" : "analyzed", checked: type !== "label" },
@@ -261,7 +319,7 @@ export async function assess(target: string | null) {
     warnings,
     evidence: checks.filter((c) => c.status === "pass" || c.status === "info").map((c) => ({ type: c.name, description: c.detail })),
     confidence,
-    payment: { price: "$0.05", network: "Algorand MainNet", asset: "USDC" },
+    payment: { price: deep ? "$0.20" : "$0.05", network: "Algorand MainNet", asset: "USDC" },
     timestamp: new Date().toISOString(),
     service: "Trust402",
     version: "0.2.0",
