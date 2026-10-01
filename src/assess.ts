@@ -310,7 +310,17 @@ export async function assess(target: string | null, deep = false) {
     target_type: type,
     tier: deep ? "advanced" : "basic",
     resolved_wallet: subject,
-    identity: { status: nfd ? `nfd:${nfd}` : "unverified", checked: type !== "label" },
+    identity: {
+      status: nfd
+        ? `nfd:${nfd}`
+        : type === "website_or_api"
+        ? (({ pass: "established_domain", info: "recent_domain", warn: "new_domain" } as Record<string, string>)[
+            checks.find((c) => c.name === "Domain age")?.status ?? ""
+          ] ?? "unverified")
+        : "unverified",
+      basis: nfd ? "NFD name linked on-chain" : type === "website_or_api" ? "Domain registration history (not legal/KYC identity)" : "No NFD name linked",
+      checked: type !== "label",
+    },
     wallet: { status: type === "label" ? "not_applicable" : has("Account exists", "fail") ? "unfunded" : "analyzed", checked: type !== "label" },
     reputation: { status: real >= 4 ? "assessed" : "limited_data", checked: real > 0 },
     contract: { status: "not_analyzed", checked: false },
